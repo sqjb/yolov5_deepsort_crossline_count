@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>demo</title>
+    <script src="static/js/konva.min.js"></script>
+    <script src="static/js/jquery-3.7.1.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="static/css/style.css">
+<!--    <script src="js/konva.min.js"></script>-->
+<!--    <script src="js/jquery-3.7.1.min.js"></script>-->
+<!--    <link rel="stylesheet" type="text/css" href="css/style.css">-->
+  </head>
+  <body>
+    <div class="center">
+      <h1>demo</h1>
+      <div class="button-group">
+        <button id="line">线段</button>
+        <button id='arrow'>箭头</button>
+        <button id="clear">清除</button>
+        <button id="config">配置</button>
+      </div>
+      <div id="container" class="container" width="800" height="600"></div>
+    </div>
+
+    
+    <script>
+      action = ''
+      line_points = []
+      arrow_points = []
+      
+      // konva 
+      var stage = new Konva.Stage({
+        container: "container",
+        width: 800,
+        height: 600
+      });
+
+      // frame layer
+      var layer = new Konva.Layer()
+      stage.add(layer)
+      var imageObj = new Image()
+      var frame = new Konva.Image({
+        x:0,
+        y:0,
+        width: 800,
+        height: 600,
+        image: imageObj
+      })
+      layer.add(frame)
+      imageObj.onload = ()=>{
+        frame.getLayer().draw()
+      }
+      
+      var layer1 = new Konva.Layer()
+      var line = new Konva.Line({
+        points: [],
+        stroke: 'greenyellow',
+        strokeWidth: 3,
+      })
+      
+      var arrow = new Konva.Arrow({
+        points: [],
+        stroke: 'yellow',
+        strokeWidth: 3,
+        fill: 'yellow',
+      })
+      stage.add(layer1)
+      layer1.add(line)
+      layer1.add(arrow)
+      var resetLayer1 = ()=>{
+        //draw layer
+        layer1.removeChildren()
+        line.setAttr('points',[])
+        arrow.setAttr('points',[])
+        layer1.add(line)
+        layer1.add(arrow)
+      }
+
+
+
+      // stage events.
+      stage.on("mousemove", ()=>{
+        if(action=='line' && line_points.length == 2) {
+          var pos = stage.getPointerPosition()
+          line.setAttr("points", [...line_points, pos.x, pos.y])
+        }
+        if(action=='arrow' && arrow_points.length == 2) {
+          var pos = stage.getPointerPosition()
+          arrow.setAttr("points", [...arrow_points, pos.x, pos.y])
+        }
+      })
+      stage.on("click", ()=>{
+        if(action=='line' && line_points.length < 4) {
+          var pos = stage.getPointerPosition()
+          line_points = [...line_points, pos.x, pos.y]
+          var rect = new Konva.Rect({
+            x: pos.x - 2.5,
+            y: pos.y - 2.5,
+            width: 5,
+            height: 5,
+            fill: 'greenyellow',
+            stroke: 'greenyellow',
+            strokeWidth: 4,
+          })
+          layer1.add(rect)
+        }
+        if(action=='arrow' && arrow_points.length < 4) {
+          var pos = stage.getPointerPosition()
+          if (arrow_points.length==0){
+            var rect = new Konva.Rect({
+              x: pos.x - 2.5,
+              y: pos.y - 2.5,
+              width: 5,
+              height: 5,
+              fill: 'yellow',
+              stroke: 'yellow',
+              strokeWidth: 4,
+            })
+            layer1.add(rect)
+          }
+          arrow_points = [...arrow_points, pos.x, pos.y]
+        }
+      })
+
+      // button
+      $('#clear').click(()=>{
+        resetLayer1()
+        arrow_points=[]
+        line_points=[]
+        action = ''
+      })
+
+      $('#line').click(()=>{
+        action = 'line'
+      })
+
+      $('#arrow').click(()=>{
+        action = 'arrow'
+      })
+
+      $('#config').click(()=>{
+        if(line_points.length != 4 || arrow_points.length != 4){
+          alert("配置数据错误，请先画线和箭头")
+          return
+        }
+        data = {
+          line: [
+            line_points[0] / stage.width(),
+            line_points[1] / stage.height(),
+            line_points[2] / stage.width(),
+            line_points[3] / stage.height()
+          ],
+          arrow: [
+            arrow_points[0] / stage.width(),
+            arrow_points[1] / stage.height(),
+            arrow_points[2] / stage.width(),
+            arrow_points[3] / stage.height()
+          ]
+        }
+        $.ajax({
+          url:'/config',
+          type:'POST',
+          contentType:'application/json',
+          data: JSON.stringify(data),
+          success: resp=>console.log(resp),
+          error: e=>alert(e.status, e.statusText)
+        })
+      })
+
+      // event-stream
+      var source = new EventSource("event")
+      source.onmessage = (e)=>{
+        var data = JSON.parse(e.data)
+        imageObj.src = data.image
+      }
+    </script>
+  </body>
+</html>
